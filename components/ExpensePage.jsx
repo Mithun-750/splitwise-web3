@@ -190,7 +190,7 @@ export default function ExpensePage() {
                                                             expense.id,
                                                             expense.owner,
                                                             amountNeedToPay(expense.amountsOwed, expense.involvedMembers),
-                                                            expense.interestRate.toNumber(),
+                                                            (expense.interestRate?.toNumber() || 0),
                                                             expense.description,
                                                             calculateDays(expense.creationTimestamp.toNumber())
                                                         )}
