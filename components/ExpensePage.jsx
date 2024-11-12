@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatEther, parseEther } from 'ethers';
+import { formatEther, parseEther, toNumber, toHexString } from 'ethers';
 import { useContract } from '@/context/ContractContext';
 
 export default function ExpensePage() {
@@ -61,7 +61,7 @@ export default function ExpensePage() {
             const transaction = {
                 from: walletAddress,
                 to: ownerAddress,
-                value: parseEther(totalAmountToBePaidInEth.toString()).toHexString(),
+                value: parseEther(totalAmountToBePaidInEth.toString()).toString(16),
             };
 
             await window.ethereum.request({
@@ -81,7 +81,6 @@ export default function ExpensePage() {
         try {
             if (contract && address) {
                 const balance = await contract.getBalance(address);
-                console.log(balance)
                 return formatEther(balance);
             }
             return '0';
@@ -190,9 +189,9 @@ export default function ExpensePage() {
                                                             expense.id,
                                                             expense.owner,
                                                             amountNeedToPay(expense.amountsOwed, expense.involvedMembers),
-                                                            (expense.interestRate?.toNumber() || 0),
+                                                            toNumber(expense.interestRate),
                                                             expense.description,
-                                                            calculateDays(expense.creationTimestamp.toNumber())
+                                                            calculateDays(toNumber(expense.creationTimestamp))
                                                         )}
                                                         className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                                                     >
