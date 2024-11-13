@@ -56,65 +56,34 @@ contract Splitwise {
         }
     }
 
-    function markUserAsPaid(uint[] memory expenseIds, address user) public {
-        require(expenseIds.length > 0, "No expenses provided");
+    function markUserAsPaid(uint expenseId, address user) public {
+        require(expenseId < expenses.length, "Expense does not exist");
+        require(expenseId >= 0, "Invalid expense ID");
         require(user != address(0), "Invalid user address");
 
         uint paidCount = 0;
 
-        // Loop through all the provided expenseIds
-        for (uint i = 0; i < expenseIds.length; i++) {
-            uint expenseId = expenseIds[i];
-            require(expenseId < expenses.length, "Expense does not exist");
+        for (uint i = 0; i < expenses[expenseId].involvedMembers.length; i++) {
+            if (expenses[expenseId].involvedMembers[i] == user) {
+                require(
+                    !expenses[expenseId].hasPaid[i],
+                    "User has already been marked as paid"
+                );
 
-            // Find the index of the user in the involvedMembers array
-            bool userFound = false;
-            uint userIndex = 0;
+                // Deduct the user's share from their balance
+                balances[user] -= int(expenses[expenseId].amountsOwed[i]);
 
-            for (
-                uint j = 0;
-                j < expenses[expenseId].involvedMembers.length;
-                j++
-            ) {
-                if (expenses[expenseId].involvedMembers[j] == user) {
-                    userIndex = j;
-                    userFound = true;
-                    break;
-                }
+                expenses[expenseId].hasPaid[i] = true;
             }
 
-            require(userFound, "User is not involved in this expense");
-            require(
-                !expenses[expenseId].hasPaid[userIndex],
-                "User has already been marked as paid"
-            );
-
-            // Deduct the user's share from their balance
-            balances[user] -= int(expenses[expenseId].amountsOwed[userIndex]);
-
-            // Mark the user as paid for this specific expense
-            expenses[expenseId].hasPaid[userIndex] = true;
-
-            // Check if all involved members for this expense have paid
-            bool allPaid = true;
-            for (uint k = 0; k < expenses[expenseId].hasPaid.length; k++) {
-                if (!expenses[expenseId].hasPaid[k]) {
-                    allPaid = false;
-                    break;
-                }
+            if (expenses[expenseId].hasPaid[i]) {
+                paidCount++;
             }
-
-            // If all members have paid, mark the expense as settled
-            if (allPaid && !expenses[expenseId].isSettled) {
-                settleExpense(expenseId);
-            }
-
-            paidCount++;
         }
 
-        // If all expenses for this user are marked as paid, check for settlement
-        if (paidCount == expenseIds.length) {
-            // Additional logic if needed for tracking
+        // Check if all members have paid, and if so, settle the expense
+        if (paidCount == expenses[expenseId].involvedMembers.length) {
+            settleExpense(expenseId);
         }
     }
 

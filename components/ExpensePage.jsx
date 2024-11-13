@@ -9,7 +9,6 @@ export default function ExpensePage() {
     const [expenses, setExpenses] = useState([]);
     const [showSettled, setShowSettled] = useState(false);
     const [balance, setBalance] = useState('0');
-    const [selectedExpenses, setSelectedExpenses] = useState([]);
 
     useEffect(() => {
         async function loadExpenses() {
@@ -78,15 +77,6 @@ export default function ExpensePage() {
         }
     };
 
-    const handleBatchPayment = async () => {
-        for (const expense of selectedExpenses) {
-            const { id, owner, amountsOwed, involvedMembers, interestRate, description, creationTimestamp } = expense;
-            const amountToPay = amountNeedToPay(amountsOwed, involvedMembers);
-            const numOfDays = calculateDays(creationTimestamp);
-            await handlePayment(id, owner, amountToPay, interestRate, description, numOfDays);
-        }
-    };
-
     const getBalance = async (address) => {
         try {
             if (contract && address) {
@@ -98,16 +88,6 @@ export default function ExpensePage() {
             console.error('Error fetching balance:', error);
             return '0';
         }
-    };
-
-    const toggleExpenseSelection = (expenseId) => {
-        setSelectedExpenses((prevSelected) => {
-            if (prevSelected.includes(expenseId)) {
-                return prevSelected.filter((id) => id !== expenseId);
-            } else {
-                return [...prevSelected, expenseId];
-            }
-        });
     };
 
     if (!contract || !walletAddress) {
@@ -218,15 +198,6 @@ export default function ExpensePage() {
                                                         Pay
                                                     </button>
                                                 )}
-
-                                                <label className="ml-4">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedExpenses.includes(expense.id)}
-                                                        onChange={() => toggleExpenseSelection(expense.id)}
-                                                    />
-                                                    Select
-                                                </label>
                                             </li>
                                         );
                                     })}
@@ -242,17 +213,6 @@ export default function ExpensePage() {
                             </div>
                         );
                     })
-                )}
-
-                {selectedExpenses.length > 0 && (
-                    <div className="mt-6">
-                        <button
-                            onClick={handleBatchPayment}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                            Pay Selected Expenses
-                        </button>
-                    </div>
                 )}
             </div>
         </div>
