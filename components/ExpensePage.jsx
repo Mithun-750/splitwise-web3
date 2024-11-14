@@ -45,20 +45,26 @@ export default function ExpensePage() {
         }
 
         try {
-            // Calculate total amount and prepare transaction
-            let totalAmount = 0;
-            const transactions = selectedPayments.map((payment) => {
-                const { actualAmount, interestRate, numOfDays } = payment;
+            // Aggregate amounts owed per unique address
+            const addressToAmountMap = selectedPayments.reduce((acc, payment) => {
+                const { actualAmount, interestRate, numOfDays, owner } = payment;
                 const amountInEth = Number(formatEther(actualAmount));
                 const totalToBePaid = amountInEth + (amountInEth * interestRate * numOfDays) / 100;
-                totalAmount += totalToBePaid;
-                return {
-                    to: payment.owner,
-                    value: parseEther(totalToBePaid.toString()).toString(16),
-                };
-            });
 
-            // Execute a batch transaction for multi-party settlement
+                if (!acc[owner]) {
+                    acc[owner] = 0;
+                }
+                acc[owner] += totalToBePaid;
+                return acc;
+            }, {});
+
+            // Prepare and execute batch transactions for each unique address
+            const transactions = Object.keys(addressToAmountMap).map((address) => ({
+                from: walletAddress,
+                to: address,
+                value: parseEther(addressToAmountMap[address].toString()).toString(16),
+            }));
+
             await Promise.all(transactions.map((tx) =>
                 window.ethereum.request({
                     method: 'eth_sendTransaction',
@@ -66,7 +72,7 @@ export default function ExpensePage() {
                 })
             ));
 
-            // Mark each payment as settled
+            // Mark each individual expense as settled
             await Promise.all(
                 selectedPayments.map((payment) =>
                     contract.markUserAsPaid(payment.expenseId, walletAddress)
@@ -80,6 +86,7 @@ export default function ExpensePage() {
             console.error('Error processing group payment:', error);
         }
     };
+
 
     const togglePaymentSelection = (expense) => {
         const isSelected = selectedPayments.some((e) => e.expenseId === expense.id);
@@ -103,6 +110,19 @@ export default function ExpensePage() {
     const calculateDays = (timestamp) => {
         const currentTimestamp = Math.floor(Date.now() / 1000);
         return Math.floor((currentTimestamp - timestamp) / 86400) + 1;
+    };
+
+    const getBalance = async (address) => {
+        try {
+            if (contract && address) {
+                const balance = await contract.getBalance(address);
+                return formatEther(balance);
+            }
+            return '0';
+        } catch (error) {
+            console.error('Error fetching balance:', error);
+            return '0';
+        }
     };
 
     if (!contract || !walletAddress) {
