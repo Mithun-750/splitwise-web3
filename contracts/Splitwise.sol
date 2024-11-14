@@ -9,29 +9,32 @@ contract Splitwise {
         address[] involvedMembers;
         uint[] amountsOwed;
         bool isSettled;
-        bool[] hasPaid; // Boolean array to track who has paid
-        uint interestRate; // New field for interest rate (in percent, e.g., 5%)
-        uint creationTimestamp; // Timestamp when the expense is created
+        bool[] hasPaid;
+        uint interestRate;
+        uint creationTimestamp;
     }
 
-    mapping(address => int) public balances;
+    // New: Token reward system
+    mapping(address => uint) public rewardTokens;
+    uint public constant SETTLEMENT_REWARD = 100; // 100 tokens for settling expenses
 
+    mapping(address => int) public balances;
     Expense[] public expenses;
 
     event ExpenseCreated(uint expenseId);
     event ExpenseSettled(uint expenseId);
+    event TokensRewarded(address user, uint amount); // New event for token rewards
 
     function createExpense(
         address[] memory members,
         uint[] memory amounts,
         string memory description,
-        uint interestRate // New parameter for interest rate
+        uint interestRate
     ) public {
         require(members.length == amounts.length, "Mismatched arrays");
 
         uint timestamp = block.timestamp;
 
-        // Create a new expense
         uint newExpenseId = expenses.length;
         expenses.push(
             Expense(
@@ -47,15 +50,14 @@ contract Splitwise {
             )
         );
 
-        // Emit the ExpenseCreated event
         emit ExpenseCreated(newExpenseId);
 
-        // Update balances for the involved members
         for (uint i = 0; i < members.length; i++) {
             balances[members[i]] += int(amounts[i]);
         }
     }
 
+    // Modified to include reward distribution
     function markUserAsPaid(uint[] memory expenseIds, address user) public {
         require(user != address(0), "Invalid user address");
 
@@ -82,6 +84,10 @@ contract Splitwise {
                     balances[user] -= int(expenses[expenseId].amountsOwed[i]);
 
                     expenses[expenseId].hasPaid[i] = true;
+
+                    // Award tokens for settling
+                    rewardTokens[user] += SETTLEMENT_REWARD;
+                    emit TokensRewarded(user, SETTLEMENT_REWARD);
                 }
 
                 if (expenses[expenseId].hasPaid[i]) {
@@ -89,20 +95,23 @@ contract Splitwise {
                 }
             }
 
-            // Check if all members have paid, and if so, settle the expense
             if (paidCount == expenses[expenseId].involvedMembers.length) {
                 settleExpense(expenseId);
             }
         }
     }
 
+    // New: Function to check user's reward tokens
+    function getRewardTokens(address user) public view returns (uint) {
+        return rewardTokens[user];
+    }
+
+    // Keeping existing functions unchanged
     function settleExpense(uint expenseId) public {
         require(expenseId < expenses.length, "Expense does not exist");
         require(!expenses[expenseId].isSettled, "Expense already settled");
 
-        // Mark expense as settled
         expenses[expenseId].isSettled = true;
-
         emit ExpenseSettled(expenseId);
     }
 
@@ -112,7 +121,6 @@ contract Splitwise {
 
     function getExpensesOfCaller() public view returns (Expense[] memory) {
         uint count = 0;
-        // Count the number of expenses involving the caller
         for (uint i = 0; i < expenses.length; i++) {
             for (uint j = 0; j < expenses[i].involvedMembers.length; j++) {
                 if (expenses[i].involvedMembers[j] == msg.sender) {
@@ -139,13 +147,11 @@ contract Splitwise {
     }
 
     function editExpense(uint expenseId, string memory newDescription) public {
-        // Add the logic to edit the description of an expense
         require(expenseId < expenses.length, "Expense does not exist");
         expenses[expenseId].description = newDescription;
     }
 
     function deleteExpense(uint expenseId) public {
-        // Add the logic to delete an expense
         require(expenseId < expenses.length, "Expense does not exist");
         delete expenses[expenseId];
     }
@@ -154,7 +160,6 @@ contract Splitwise {
         address owner
     ) public view returns (Expense[] memory) {
         uint count = 0;
-        // Count the number of expenses owned by the provided address
         for (uint i = 0; i < expenses.length; i++) {
             if (expenses[i].owner == owner) {
                 count++;
