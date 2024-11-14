@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatEther, parseEther, toNumber, toHexString } from 'ethers';
+import { formatEther, parseEther } from 'ethers';
 import { useContract } from '@/context/ContractContext';
 
 export default function ExpensePage() {
@@ -52,11 +52,8 @@ export default function ExpensePage() {
 
         try {
             const actualAmountInEth = Number(formatEther(actualAmount));
-
             let totalAmountToBePaidInEth = actualAmountInEth + (actualAmountInEth * interestRate * numOfDays) / 100;
             totalAmountToBePaidInEth = Math.round(totalAmountToBePaidInEth * 1000000) / 1000000;
-
-            const description = `Payment for expense ${expenseTitle}. Actual Amount: ${actualAmountInEth} ETH, Interest: ${totalAmountToBePaidInEth - actualAmountInEth}ETH for ${numOfDays} days`;
 
             const transaction = {
                 from: walletAddress,
@@ -74,6 +71,28 @@ export default function ExpensePage() {
             setExpenses(updatedExpenses);
         } catch (error) {
             console.error('Error processing payment:', error);
+        }
+    };
+
+    const handleBulkPayment = async () => {
+        const unpaidExpenses = expenses.filter(expense => {
+            const userIndex = expense.involvedMembers.findIndex(
+                member => member.toLowerCase() === walletAddress.toLowerCase()
+            );
+            return !expense.hasPaid[userIndex];
+        });
+
+        for (const expense of unpaidExpenses) {
+            const amount = amountNeedToPay(expense.amountsOwed, expense.involvedMembers);
+            const days = calculateDays(expense.creationTimestamp);
+            await handlePayment(
+                expense.id,
+                expense.owner,
+                amount,
+                expense.interestRate,
+                expense.description,
+                days
+            );
         }
     };
 
@@ -133,6 +152,13 @@ export default function ExpensePage() {
                 </label>
             </div>
 
+            <button
+                onClick={handleBulkPayment}
+                className="mb-6 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            >
+                Pay All Unpaid Expenses
+            </button>
+
             <div className="space-y-6">
                 {expenses.length === 0 ? (
                     <div className="bg-gray-50 rounded-md p-4 text-gray-600 text-center">
@@ -159,8 +185,7 @@ export default function ExpensePage() {
 
                                 <ul className="space-y-3">
                                     {expense.involvedMembers.map((member, index) => {
-                                        member = member.toLowerCase();
-                                        const isCurrentUser = member === walletAddress?.toLowerCase();
+                                        const isCurrentUser = member.toLowerCase() === walletAddress.toLowerCase();
                                         const isPaymentVisible = isCurrentUser && !expense.hasPaid[index];
 
                                         return (
@@ -189,9 +214,9 @@ export default function ExpensePage() {
                                                             expense.id,
                                                             expense.owner,
                                                             amountNeedToPay(expense.amountsOwed, expense.involvedMembers),
-                                                            toNumber(expense.interestRate),
+                                                            expense.interestRate,
                                                             expense.description,
-                                                            calculateDays(toNumber(expense.creationTimestamp))
+                                                            calculateDays(expense.creationTimestamp)
                                                         )}
                                                         className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                                                     >

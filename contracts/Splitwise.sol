@@ -56,24 +56,26 @@ contract Splitwise {
         }
     }
 
-    function markUserAsPaid(uint expenseId, address user) public {
+    function markUsersAsPaid(uint expenseId, address[] memory users) public {
         require(expenseId < expenses.length, "Expense does not exist");
         require(expenseId >= 0, "Invalid expense ID");
-        require(user != address(0), "Invalid user address");
 
         uint paidCount = 0;
 
         for (uint i = 0; i < expenses[expenseId].involvedMembers.length; i++) {
-            if (expenses[expenseId].involvedMembers[i] == user) {
-                require(
-                    !expenses[expenseId].hasPaid[i],
-                    "User has already been marked as paid"
-                );
+            for (uint j = 0; j < users.length; j++) {
+                if (expenses[expenseId].involvedMembers[i] == users[j]) {
+                    require(
+                        !expenses[expenseId].hasPaid[i],
+                        "User has already been marked as paid"
+                    );
 
-                // Deduct the user's share from their balance
-                balances[user] -= int(expenses[expenseId].amountsOwed[i]);
-
-                expenses[expenseId].hasPaid[i] = true;
+                    // Deduct the user's share from their balance
+                    balances[users[j]] -= int(
+                        expenses[expenseId].amountsOwed[i]
+                    );
+                    expenses[expenseId].hasPaid[i] = true;
+                }
             }
 
             if (expenses[expenseId].hasPaid[i]) {

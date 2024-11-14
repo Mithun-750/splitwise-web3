@@ -65,7 +65,7 @@ export function ContractProvider({ children }) {
         try {
             const provider = new BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            const contractAddress = "0x200E6483bf391AdC49506594bBE01f56624C6530";
+            const contractAddress = "0xACF7E8E5faA394629644b39464a5Cfa3Af71cd57";
 
             const deployedContract = new Contract(
                 contractAddress,
