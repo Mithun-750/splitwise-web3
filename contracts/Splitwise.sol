@@ -56,34 +56,43 @@ contract Splitwise {
         }
     }
 
-    function markUserAsPaid(uint expenseId, address user) public {
-        require(expenseId < expenses.length, "Expense does not exist");
-        require(expenseId >= 0, "Invalid expense ID");
+    function markUserAsPaid(uint[] memory expenseIds, address user) public {
         require(user != address(0), "Invalid user address");
 
-        uint paidCount = 0;
+        for (uint j = 0; j < expenseIds.length; j++) {
+            uint expenseId = expenseIds[j];
 
-        for (uint i = 0; i < expenses[expenseId].involvedMembers.length; i++) {
-            if (expenses[expenseId].involvedMembers[i] == user) {
-                require(
-                    !expenses[expenseId].hasPaid[i],
-                    "User has already been marked as paid"
-                );
+            require(expenseId < expenses.length, "Expense does not exist");
+            require(expenseId >= 0, "Invalid expense ID");
 
-                // Deduct the user's share from their balance
-                balances[user] -= int(expenses[expenseId].amountsOwed[i]);
+            uint paidCount = 0;
 
-                expenses[expenseId].hasPaid[i] = true;
+            for (
+                uint i = 0;
+                i < expenses[expenseId].involvedMembers.length;
+                i++
+            ) {
+                if (expenses[expenseId].involvedMembers[i] == user) {
+                    require(
+                        !expenses[expenseId].hasPaid[i],
+                        "User has already been marked as paid"
+                    );
+
+                    // Deduct the user's share from their balance
+                    balances[user] -= int(expenses[expenseId].amountsOwed[i]);
+
+                    expenses[expenseId].hasPaid[i] = true;
+                }
+
+                if (expenses[expenseId].hasPaid[i]) {
+                    paidCount++;
+                }
             }
 
-            if (expenses[expenseId].hasPaid[i]) {
-                paidCount++;
+            // Check if all members have paid, and if so, settle the expense
+            if (paidCount == expenses[expenseId].involvedMembers.length) {
+                settleExpense(expenseId);
             }
-        }
-
-        // Check if all members have paid, and if so, settle the expense
-        if (paidCount == expenses[expenseId].involvedMembers.length) {
-            settleExpense(expenseId);
         }
     }
 

@@ -45,7 +45,6 @@ export default function ExpensePage() {
         }
 
         try {
-            // Aggregate amounts owed per unique address
             const addressToAmountMap = selectedPayments.reduce((acc, payment) => {
                 const { actualAmount, interestRate, numOfDays, owner } = payment;
                 const amountInEth = Number(formatEther(actualAmount));
@@ -58,7 +57,6 @@ export default function ExpensePage() {
                 return acc;
             }, {});
 
-            // Prepare and execute batch transactions for each unique address
             const transactions = Object.keys(addressToAmountMap).map((address) => ({
                 from: walletAddress,
                 to: address,
@@ -72,20 +70,20 @@ export default function ExpensePage() {
                 })
             ));
 
-            // Mark each individual expense as settled
-            await Promise.all(
-                selectedPayments.map((payment) =>
-                    contract.markUserAsPaid(payment.expenseId, walletAddress)
-                )
-            );
+            // Collect all expense IDs that were paid
+            const expenseIds = selectedPayments.map(payment => payment.expenseId);
 
-            setSelectedPayments([]);  // Clear selection after payment
+            // Mark all selected expenses as paid in a single contract call
+            await contract.markUserAsPaid(expenseIds, walletAddress);
+
+            setSelectedPayments([]);
             const updatedExpenses = await contract.getExpensesOfCaller();
             setExpenses(updatedExpenses);
         } catch (error) {
             console.error('Error processing group payment:', error);
         }
     };
+
 
 
     const togglePaymentSelection = (expense) => {

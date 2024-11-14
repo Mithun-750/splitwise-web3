@@ -46,7 +46,7 @@ describe("Splitwise", function () {
     });
   });
 
-  describe("markUsersAsPaid", function () {
+  describe("markUserAsPaid", function () {
     beforeEach(async function () {
       await splitwise.createExpense(
         [member1.address, member2.address],
@@ -54,31 +54,28 @@ describe("Splitwise", function () {
         "Dinner",
         5
       );
+      await splitwise.createExpense(
+        [member1.address],
+        [150],
+        "Lunch",
+        5
+      );
     });
 
-    it("should mark multiple users as paid and update their balances", async function () {
-      await splitwise
-        .connect(owner)
-        .markUsersAsPaid(0, [member1.address, member2.address]);
+    it("should mark multiple expenses as paid by a user and update balances", async function () {
+      const expenseIds = [0, 1];
+      await splitwise.connect(owner).markUserAsPaid(expenseIds, member1.address);
 
       const balance1 = await splitwise.getBalance(member1.address);
       const balance2 = await splitwise.getBalance(member2.address);
 
-      expect(balance1).to.equal(0);
-      expect(balance2).to.equal(0);
+      expect(balance1).to.equal(0); // member1's balance should be 0
+      expect(balance2).to.equal(200); // member2's balance should remain as they haven't paid
     });
 
-    it("should settle the expense when all users have paid", async function () {
-      await splitwise
-        .connect(owner)
-        .markUsersAsPaid(0, [member1.address, member2.address]);
-
-      const expense = await splitwise.expenses(0);
-      expect(expense.isSettled).to.be.true;
-    });
-
-    it("should not settle the expense if only some users have paid", async function () {
-      await splitwise.connect(owner).markUsersAsPaid(0, [member1.address]);
+    it("should not settle an expense if only some members have paid", async function () {
+      const expenseIds = [0, 1];
+      await splitwise.connect(owner).markUserAsPaid(expenseIds, member1.address);
 
       const expense = await splitwise.expenses(0);
       expect(expense.isSettled).to.be.false;
@@ -89,6 +86,16 @@ describe("Splitwise", function () {
       expect(balance1).to.equal(0); // Only member1 has paid
       expect(balance2).to.equal(200); // member2's balance should remain
     });
+
+    it("should settle each expense once all members have paid", async function () {
+      const expenseIds = [0];
+      await splitwise.connect(owner).markUserAsPaid(expenseIds, member1.address);
+      await splitwise.connect(owner).markUserAsPaid(expenseIds, member2.address);
+
+      const expense = await splitwise.expenses(0);
+      expect(expense.isSettled).to.be.true;
+    });
+
   });
 
   describe("getExpensesOfCaller", function () {
