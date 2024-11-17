@@ -29,6 +29,12 @@ export default function Navigation() {
                         >
                             Expenses by You
                         </Link>
+                        <Link
+                            href="/rewards"
+                            className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
+                        >
+                            Rewards
+                        </Link>
                     </div>
                     <div className="text-sm truncate">
                         {/* {walletAddress ? `Connected: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not Connected'} */}
