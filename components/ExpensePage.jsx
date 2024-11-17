@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { formatEther, parseEther, toNumber } from 'ethers';
 import { useContract } from '@/context/ContractContext';
+import { Wallet, Clock, DollarSign, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 export default function ExpensePage() {
     const { contract, walletAddress } = useContract();
@@ -84,8 +85,6 @@ export default function ExpensePage() {
         }
     };
 
-
-
     const togglePaymentSelection = (expense) => {
         const isSelected = selectedPayments.some((e) => e.expenseId === expense.id);
         if (isSelected) {
@@ -125,121 +124,210 @@ export default function ExpensePage() {
 
     if (!contract || !walletAddress) {
         return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-yellow-700">
-                    Please connect your wallet to view expenses.
+            <div className="min-h-screen bg-[#0A0A0A] text-gray-200 py-8">
+                <div className="max-w-6xl mx-auto px-4">
+                    <div className="bg-yellow-900/20 border border-yellow-900 rounded-xl p-4 text-yellow-400">
+                        Please connect your wallet to view expenses.
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold">
-                    Your Expenses
-                    <span className="ml-2 text-gray-600 text-lg">
-                        (Total Balance: {balance} ETH)
-                    </span>
-                </h2>
-            </div>
-
-            <div className="flex space-x-4 mb-6">
-                <label className="inline-flex items-center">
-                    <input
-                        type="radio"
-                        className="form-radio text-blue-600"
-                        checked={!showSettled}
-                        onChange={() => setShowSettled(false)}
-                    />
-                    <span className="ml-2">Unsettled</span>
-                </label>
-                <label className="inline-flex items-center">
-                    <input
-                        type="radio"
-                        className="form-radio text-blue-600"
-                        checked={showSettled}
-                        onChange={() => setShowSettled(true)}
-                    />
-                    <span className="ml-2">Settled</span>
-                </label>
-            </div>
-
-            <div className="space-y-6">
-                {expenses.length === 0 ? (
-                    <div className="bg-gray-50 rounded-md p-4 text-gray-600 text-center">
-                        No {showSettled ? 'settled' : 'unsettled'} expenses found.
+        <div className="min-h-screen bg-[#0A0A0A] text-gray-200 py-8">
+            <div className="max-w-6xl mx-auto px-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+                    <div className="mb-4 sm:mb-0">
+                        <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                            Your Expenses
+                        </h2>
+                        <p className="text-gray-400 mt-2">
+                            Balance: <span className="text-purple-400 font-medium">{balance} ETH</span>
+                        </p>
                     </div>
-                ) : (
-                    expenses.map((expense) => {
-                        if (showSettled !== expense.isSettled) return null;
-                        const isSelected = selectedPayments.some((e) => e.expenseId === expense.id);
 
-                        return (
-                            <div
-                                key={expense.id}
-                                className="bg-white rounded-lg shadow-md p-6 border border-gray-200"
-                            >
-                                <h3 className="text-xl font-semibold mb-4">
-                                    Description: {expense.description}
-                                </h3>
+                    <div className="flex space-x-4">
+                        <button
+                            onClick={() => setShowSettled(false)}
+                            className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                                !showSettled
+                                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500'
+                                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-purple-500/50'
+                            }`}
+                        >
+                            Unsettled
+                        </button>
+                        <button
+                            onClick={() => setShowSettled(true)}
+                            className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                                showSettled
+                                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500'
+                                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-purple-500/50'
+                            }`}
+                        >
+                            Settled
+                        </button>
+                    </div>
+                </div>
 
-                                <p className="text-gray-700 mb-2">
-                                    Expense Owner: {expense.owner === walletAddress ? "You" : expense.owner}
-                                </p>
+                <div className="space-y-6">
+                    {expenses.length === 0 ? (
+                        <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 text-gray-400 text-center">
+                            No {showSettled ? 'settled' : 'unsettled'} expenses found.
+                        </div>
+                    ) : (
+                        expenses.map((expense) => {
+                            if (showSettled !== expense.isSettled) return null;
+                            const isSelected = selectedPayments.some((e) => e.expenseId === expense.id);
+                            const amountToPay = amountNeedToPay(expense.amountsOwed, expense.involvedMembers);
+                            const numOfDays = calculateDays(toNumber(expense.creationTimestamp));
+                            const interestAmount = (Number(formatEther(amountToPay)) * Number(expense.interestRate) * numOfDays) / 100;
+                            const totalAmount = Number(formatEther(amountToPay)) + interestAmount;
 
-                                <ul className="space-y-3">
-                                    {expense.involvedMembers.map((member, index) => {
-                                        const isCurrentUser = member.toLowerCase() === walletAddress?.toLowerCase();
-                                        const isPaymentVisible = isCurrentUser && !expense.hasPaid[index];
+                            return (
+                                <div
+                                    key={expense.id}
+                                    className={`bg-[#1a1a1a] rounded-xl border shadow-xl p-6 transition-all duration-300 ${
+                                        isSelected ? 'border-purple-500' : 'border-gray-800 hover:border-purple-900'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <h3 className="text-xl font-semibold text-gray-200 mb-2">
+                                                {expense.description}
+                                            </h3>
+                                            <p className="text-gray-400 flex items-center gap-2">
+                                                <Wallet className="w-4 h-4" />
+                                                Owner: {expense.owner === walletAddress ? "You" : `${expense.owner.slice(0, 6)}...${expense.owner.slice(-4)}`}
+                                            </p>
+                                        </div>
+                                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                            expense.isSettled
+                                                ? 'bg-green-900/20 text-green-400 border border-green-900'
+                                                : 'bg-yellow-900/20 text-yellow-400 border border-yellow-900'
+                                        }`}>
+                                            {expense.isSettled ? 'Settled' : 'Pending'}
+                                        </div>
+                                    </div>
 
-                                        return (
-                                            <li key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-md">
-                                                <span className="font-medium">
-                                                    Address: {isCurrentUser ? "You" : member}
-                                                </span>
-                                                <span className="text-gray-600">
-                                                    Amount to Pay: {formatEther(expense.amountsOwed[index])} ETH
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-sm ${expense.hasPaid[index]
-                                                    ? "bg-green-100 text-green-800"
-                                                    : "bg-red-100 text-red-800"
-                                                    }`}>
-                                                    {expense.hasPaid[index] ? "Paid" : "Unpaid"}
-                                                </span>
-                                                {isPaymentVisible && (
-                                                    <button
-                                                        onClick={() => togglePaymentSelection(expense)}
-                                                        className={`ml-auto px-4 py-2 ${isSelected ? "bg-red-600" : "bg-blue-600"} text-white rounded-md hover:bg-blue-700 transition-colors`}
-                                                    >
-                                                        {isSelected ? "Deselect" : "Select"}
-                                                    </button>
-                                                )}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                                <p className="mt-4 text-gray-600">
-                                    Status: {expense.isSettled ? (
-                                        <span className="text-green-600">Settled</span>
-                                    ) : (
-                                        <span className="text-yellow-600">Pending</span>
-                                    )}
-                                </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                        <div className="flex items-center gap-2 bg-gray-800/30 rounded-lg p-4">
+                                            <DollarSign className="w-5 h-5 text-purple-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-400">Amount</p>
+                                                <p className="text-lg font-semibold text-purple-400">
+                                                    {formatEther(amountToPay)} ETH
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-gray-800/30 rounded-lg p-4">
+                                            <Clock className="w-5 h-5 text-purple-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-400">Days Elapsed</p>
+                                                <p className="text-lg font-semibold text-purple-400">{numOfDays}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-gray-800/30 rounded-lg p-4">
+                                            <AlertCircle className="w-5 h-5 text-purple-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-400">Interest ({expense.interestRate}% per day)</p>
+                                                <p className="text-lg font-semibold text-purple-400">
+                                                    {interestAmount.toFixed(6)} ETH
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {expense.involvedMembers.map((member, index) => {
+                                            const isCurrentUser = member.toLowerCase() === walletAddress?.toLowerCase();
+                                            const isPaymentVisible = isCurrentUser && !expense.hasPaid[index];
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-800/30 rounded-xl"
+                                                >
+                                                    <div className="flex items-center gap-3 mb-2 sm:mb-0">
+                                                        <span className="text-gray-300">
+                                                            {isCurrentUser ? "You" : `${member.slice(0, 6)}...${member.slice(-4)}`}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <DollarSign className="w-4 h-4 text-purple-400" />
+                                                            <span className="text-purple-400 font-medium">
+                                                                {formatEther(expense.amountsOwed[index])} ETH
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2">
+                                                            {expense.hasPaid[index] ? (
+                                                                <CheckCircle className="w-5 h-5 text-green-400" />
+                                                            ) : (
+                                                                <XCircle className="w-5 h-5 text-red-400" />
+                                                            )}
+                                                            <span className={`text-sm font-medium ${
+                                                                expense.hasPaid[index] ? 'text-green-400' : 'text-red-400'
+                                                            }`}>
+                                                                {expense.hasPaid[index] ? 'Paid' : 'Unpaid'}
+                                                            </span>
+                                                        </div>
+
+                                                        {isPaymentVisible && (
+                                                            <button
+                                                                onClick={() => togglePaymentSelection(expense)}
+                                                                className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                                                                    isSelected
+                                                                        ? 'bg-red-500/20 text-red-400 border border-red-500'
+                                                                        : 'bg-purple-500/20 text-purple-400 border border-purple-500 hover:bg-purple-500/30'
+                                                                }`}
+                                                            >
+                                                                {isSelected ? 'Deselect' : 'Select'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {selectedPayments.length > 0 && (
+                    <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-[#1a1a1a] rounded-xl border border-gray-800 shadow-2xl p-4 z-50">
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-purple-400">
+                                    {selectedPayments.length} payment(s) selected
+                                </span>
+                                <span className="text-gray-400">•</span>
+                                <div className="flex items-center gap-2">
+                                    <DollarSign className="w-4 h-4 text-purple-400" />
+                                    <span className="text-purple-400 font-medium">
+                                        {selectedPayments.reduce((total, payment) => {
+                                            const amountInEth = Number(formatEther(payment.actualAmount));
+                                            const interest = (amountInEth * payment.interestRate * payment.numOfDays) / 100;
+                                            return total + amountInEth + interest;
+                                        }, 0).toFixed(6)} ETH
+                                    </span>
+                                </div>
                             </div>
-                        );
-                    })
+                            <button
+                                onClick={handleGroupPayment}
+                                className="px-6 py-2 bg-purple-500/20 text-purple-400 rounded-lg border border-purple-500 hover:bg-purple-500/30 transition-all duration-200"
+                            >
+                                Pay Selected
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
-
-            {selectedPayments.length > 0 && (
-                <button
-                    onClick={handleGroupPayment}
-                    className="mt-6 px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                >
-                    Pay Selected Expenses
-                </button>
-            )}
         </div>
     );
 }

@@ -5,6 +5,8 @@ import contractABI from '@/artifacts/contracts/Splitwise.sol/Splitwise.json';
 
 const ContractContext = createContext();
 
+const STORAGE_KEY = 'walletConnectionState';
+
 export function ContractProvider({ children }) {
     const [contract, setContract] = useState(null);
     const [walletAddress, setWalletAddress] = useState("");
@@ -23,18 +25,6 @@ export function ContractProvider({ children }) {
                 throw new Error("Please install MetaMask to use this application");
             }
 
-            // Check if already connected
-            const accounts = await window.ethereum.request({
-                method: "eth_accounts"
-            });
-
-            if (accounts && accounts.length > 0) {
-                setWalletAddress(accounts[0]);
-                setConnectionStatus('connected');
-                await initContract();
-                return;
-            }
-
             // If not connected, request connection
             const newAccounts = await window.ethereum.request({
                 method: "eth_requestAccounts",
@@ -46,20 +36,25 @@ export function ContractProvider({ children }) {
 
             setWalletAddress(newAccounts[0]);
             setConnectionStatus('connected');
+            localStorage.setItem(STORAGE_KEY, 'connected');
             await initContract();
 
         } catch (error) {
-            console.error("Connection error:", error);
-            if (error.code === -32002) {
-                setError("Connection request already pending. Please check MetaMask.");
-            } else {
-                setError(error.message);
-            }
+            console.error("Error connecting wallet:", error);
+            setError(error.message || "Failed to connect wallet");
             setConnectionStatus('error');
+            localStorage.setItem(STORAGE_KEY, 'disconnected');
         } finally {
             setIsConnecting(false);
         }
     }, [isConnecting]);
+
+    const disconnectWallet = useCallback(async () => {
+        setContract(null);
+        setWalletAddress("");
+        setConnectionStatus('disconnected');
+        localStorage.setItem(STORAGE_KEY, 'disconnected');
+    }, []);
 
     const initContract = async () => {
         try {
@@ -82,20 +77,27 @@ export function ContractProvider({ children }) {
     };
 
     useEffect(() => {
-        // Check initial connection status
         const checkConnection = async () => {
-            if (window.ethereum) {
+            const savedConnectionState = localStorage.getItem(STORAGE_KEY);
+            
+            // Only auto-connect if previously connected
+            if (savedConnectionState === 'connected' && window.ethereum) {
                 try {
                     const accounts = await window.ethereum.request({
                         method: "eth_accounts"
                     });
-                    if (accounts.length > 0) {
+
+                    if (accounts && accounts.length > 0) {
                         setWalletAddress(accounts[0]);
                         setConnectionStatus('connected');
                         await initContract();
+                    } else {
+                        // If no accounts found, ensure we're in disconnected state
+                        await disconnectWallet();
                     }
                 } catch (error) {
-                    console.error("Initial connection check failed:", error);
+                    console.error("Error checking connection:", error);
+                    await disconnectWallet();
                 }
             }
         };
@@ -103,14 +105,14 @@ export function ContractProvider({ children }) {
         checkConnection();
 
         if (window.ethereum) {
-            window.ethereum.on('accountsChanged', (accounts) => {
-                if (accounts.length > 0) {
-                    setWalletAddress(accounts[0]);
-                    initContract();
+            window.ethereum.on('accountsChanged', async (accounts) => {
+                if (accounts.length === 0) {
+                    await disconnectWallet();
                 } else {
-                    setWalletAddress("");
-                    setContract(null);
-                    setConnectionStatus('disconnected');
+                    setWalletAddress(accounts[0]);
+                    setConnectionStatus('connected');
+                    localStorage.setItem(STORAGE_KEY, 'connected');
+                    await initContract();
                 }
             });
 
@@ -121,21 +123,24 @@ export function ContractProvider({ children }) {
 
         return () => {
             if (window.ethereum) {
-                window.ethereum.removeListener('accountsChanged', () => { });
-                window.ethereum.removeListener('chainChanged', () => { });
+                window.ethereum.removeListener('accountsChanged', disconnectWallet);
+                window.ethereum.removeListener('chainChanged', () => {
+                    window.location.reload();
+                });
             }
         };
-    }, []);
+    }, [disconnectWallet]);
 
     return (
         <ContractContext.Provider
             value={{
                 contract,
                 walletAddress,
-                connectWallet,
                 isConnecting,
-                connectionStatus,
-                error
+                error,
+                connectWallet,
+                disconnectWallet,
+                connectionStatus
             }}
         >
             {children}
