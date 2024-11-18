@@ -178,7 +178,7 @@ export default function ExpenseForm() {
                         
                         {/* Owner Section */}
                         <div className="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-                            <h4 className="text-sm font-semibold text-purple-400 mb-2">Owner's Share (For Reference)</h4>
+                            <h4 className="text-sm font-semibold text-purple-400 mb-2">Owner&apos;s Share (For Reference)</h4>
                             <div className="flex items-center justify-between">
                                 <span className="text-gray-300">Owner</span>
                                 <input
