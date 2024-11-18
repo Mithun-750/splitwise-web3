@@ -8,34 +8,88 @@ import { Plus, X, Users, FileText, Percent } from 'lucide-react';
 export default function ExpenseForm() {
     const { contract } = useContract();
     const [formData, setFormData] = useState({
-        address: '',
-        amount: '',
         description: '',
-        interestRate: ''
+        interestRate: '',
+        totalAmount: '',
+        address: ''
     });
     const [members, setMembers] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
+    const [owner, setOwner] = useState({ address: '', amount: '0' });
+
+    const updateAllShares = (newTotalAmount) => {
+        const totalParticipants = members.length + 1; // +1 for owner
+        if (totalParticipants === 0 || !newTotalAmount) return;
+
+        const equalSplit = (parseFloat(newTotalAmount) / totalParticipants).toFixed(4);
+        
+        // Update all members with new equal split
+        const updatedMembers = members.map(member => ({
+            ...member,
+            amount: equalSplit
+        }));
+        
+        setMembers(updatedMembers);
+        setOwner(prev => ({ ...prev, amount: equalSplit }));
+    };
+
+    const handleTotalAmountChange = (e) => {
+        const newTotalAmount = e.target.value;
+        setFormData({ ...formData, totalAmount: newTotalAmount });
+        updateAllShares(newTotalAmount);
+    };
 
     const handleAddMember = () => {
-        const { address, amount } = formData;
-        const amountPattern = /^\d+(\.\d{0,2})?/;
-
-        if (address && amount && amountPattern.test(amount)) {
-            setMembers([...members, { address, amount }]);
+        const { address } = formData;
+        if (address) {
+            const totalAmountFloat = parseFloat(formData.totalAmount || 0);
+            
+            // Calculate equal split among new total number of participants (including owner)
+            const equalSplit = (totalAmountFloat / (members.length + 2)).toFixed(4); // +2 for new member and owner
+            
+            // Update existing members with new equal split
+            const updatedMembers = members.map(member => ({
+                ...member,
+                amount: equalSplit
+            }));
+            
+            // Add new member with equal split
+            setMembers([...updatedMembers, { address, amount: equalSplit }]);
+            setOwner(prev => ({ ...prev, amount: equalSplit }));
+            
             setFormData({
                 ...formData,
-                address: '',
-                amount: ''
+                address: ''
             });
-        } else {
-            alert('Please enter a valid amount in Ether (e.g., 0.01 ETH with up to 2 decimal places).');
         }
+    };
+
+    const handleMemberAmountChange = (index, newAmount) => {
+        const updatedMembers = [...members];
+        updatedMembers[index].amount = newAmount;
+        setMembers(updatedMembers);
+    };
+
+    const handleOwnerAmountChange = (newAmount) => {
+        setOwner(prev => ({ ...prev, amount: newAmount }));
+    };
+
+    const validateTotalAmount = () => {
+        const totalAmountFloat = parseFloat(formData.totalAmount || 0);
+        const membersTotal = members.reduce((sum, member) => sum + parseFloat(member.amount || 0), 0);
+        const ownerAmount = parseFloat(owner.amount || 0);
+        return Math.abs(totalAmountFloat - (membersTotal + ownerAmount)) < 0.0001; // Allow for small floating point differences
     };
 
     const handleCreateExpense = async (e) => {
         e.preventDefault();
         if (!contract) {
             setSuccessMessage('Please connect your wallet first.');
+            return;
+        }
+
+        if (!validateTotalAmount()) {
+            setSuccessMessage('Error: The sum of member amounts must equal the total expense amount.');
             return;
         }
 
@@ -56,7 +110,8 @@ export default function ExpenseForm() {
                 await tx.wait();
                 setSuccessMessage('Expense created successfully!');
                 setMembers([]);
-                setFormData({ address: '', amount: '', description: '', interestRate: '' });
+                setFormData({ description: '', interestRate: '', totalAmount: '', address: '' });
+                setOwner({ address: '', amount: '0' });
             } catch (error) {
                 console.error('Error creating expense:', error);
                 setSuccessMessage('Error creating expense. Please try again.');
@@ -97,7 +152,20 @@ export default function ExpenseForm() {
                                 placeholder="Interest percentage per day"
                                 value={formData.interestRate}
                                 onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                                className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-xl focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500"
+                                className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-xl focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                        </div>
+
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">ETH</span>
+                            <input
+                                type="number"
+                                required
+                                step="0.0001"
+                                placeholder="Total Amount in ETH"
+                                value={formData.totalAmount}
+                                onChange={handleTotalAmountChange}
+                                className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-xl focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                         </div>
                     </div>
@@ -107,32 +175,39 @@ export default function ExpenseForm() {
                             <Users className="w-5 h-5 text-purple-400" />
                             Add Members
                         </h3>
+                        
+                        {/* Owner Section */}
+                        <div className="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                            <h4 className="text-sm font-semibold text-purple-400 mb-2">Owner's Share (For Reference)</h4>
+                            <div className="flex items-center justify-between">
+                                <span className="text-gray-300">Owner</span>
+                                <input
+                                    type="number"
+                                    step="0.0001"
+                                    value={owner.amount}
+                                    onChange={(e) => handleOwnerAmountChange(e.target.value)}
+                                    className="bg-transparent border-b border-gray-700 focus:outline-none focus:border-purple-500 text-purple-400 w-24 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <input
                                     type="text"
-                                    placeholder="Address"
+                                    placeholder="Member Address"
                                     value={formData.address}
                                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                     className="w-full px-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-xl focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500"
                                 />
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Amount in ETH"
-                                        value={formData.amount}
-                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                        className="flex-1 px-4 py-3 bg-[#1a1a1a] border border-gray-800 rounded-xl focus:outline-none focus:border-purple-500 text-gray-200 placeholder-gray-500"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleAddMember}
-                                        className="px-4 py-3 bg-purple-500/20 border border-purple-500 rounded-xl hover:bg-purple-500/30 transition-all duration-200"
-                                    >
-                                        <Plus className="w-5 h-5 text-purple-400" />
-                                    </button>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleAddMember}
+                                    className="px-4 py-3 bg-purple-500/20 border border-purple-500 rounded-xl hover:bg-purple-500/30 transition-all duration-200 flex items-center justify-center gap-2"
+                                >
+                                    <Plus className="w-5 h-5 text-purple-400" />
+                                    <span>Add Member</span>
+                                </button>
                             </div>
 
                             {/* Members List */}
@@ -146,7 +221,13 @@ export default function ExpenseForm() {
                                             <span className="text-gray-300 truncate">
                                                 {member.address.slice(0, 6)}...{member.address.slice(-4)}
                                             </span>
-                                            <span className="text-purple-400">{member.amount} ETH</span>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                value={member.amount}
+                                                onChange={(e) => handleMemberAmountChange(index, e.target.value)}
+                                                className="bg-transparent border-b border-gray-700 focus:outline-none focus:border-purple-500 text-purple-400 w-24 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            />
                                         </div>
                                         <button
                                             type="button"
