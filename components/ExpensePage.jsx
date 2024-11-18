@@ -8,7 +8,7 @@ import { Wallet, Clock, DollarSign, AlertCircle, CheckCircle, XCircle } from 'lu
 export default function ExpensePage() {
     const { contract, walletAddress } = useContract();
     const [expenses, setExpenses] = useState([]);
-    const [showSettled, setShowSettled] = useState(false);
+    const [showPaid, setShowPaid] = useState(false);
     const [balance, setBalance] = useState('0');
     const [selectedPayments, setSelectedPayments] = useState([]);
 
@@ -149,9 +149,9 @@ export default function ExpensePage() {
 
                     <div className="flex space-x-4">
                         <button
-                            onClick={() => setShowSettled(false)}
+                            onClick={() => setShowPaid(false)}
                             className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                                !showSettled
+                                !showPaid
                                     ? 'bg-purple-500/20 text-purple-400 border border-purple-500'
                                     : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-purple-500/50'
                             }`}
@@ -159,9 +159,9 @@ export default function ExpensePage() {
                             Unsettled
                         </button>
                         <button
-                            onClick={() => setShowSettled(true)}
+                            onClick={() => setShowPaid(true)}
                             className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                                showSettled
+                                showPaid
                                     ? 'bg-purple-500/20 text-purple-400 border border-purple-500'
                                     : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-purple-500/50'
                             }`}
@@ -174,11 +174,16 @@ export default function ExpensePage() {
                 <div className="space-y-6">
                     {expenses.length === 0 ? (
                         <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-6 text-gray-400 text-center">
-                            No {showSettled ? 'settled' : 'unsettled'} expenses found.
+                            No {showPaid ? 'paid' : 'unpaid'} expenses found.
                         </div>
                     ) : (
                         expenses.map((expense) => {
-                            if (showSettled !== expense.isSettled) return null;
+                            const userIndex = expense.involvedMembers.findIndex(
+                                member => member.toLowerCase() === walletAddress?.toLowerCase()
+                            );
+                            const hasUserPaid = userIndex !== -1 && expense.hasPaid[userIndex];
+                            
+                            if (showPaid !== hasUserPaid) return null;
                             const isSelected = selectedPayments.some((e) => e.expenseId === expense.id);
                             const amountToPay = amountNeedToPay(expense.amountsOwed, expense.involvedMembers);
                             const numOfDays = calculateDays(toNumber(expense.creationTimestamp));
