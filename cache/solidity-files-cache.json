@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\mail4\\Projects\\bta\\contracts\\Splitwise.sol": {
-      "lastModificationDate": 1731948402252,
-      "contentHash": "6da3ce64037dff1cfaad8ccf178a91bb",
+      "lastModificationDate": 1732006635006,
+      "contentHash": "2856ff13d2e5ac330dbb614ab80274e2",
       "sourceName": "contracts/Splitwise.sol",
       "solcConfig": {
         "version": "0.8.27",

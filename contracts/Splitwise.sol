@@ -19,7 +19,9 @@ contract Splitwise {
     uint private constant INITIAL_REWARD = 100; // Initial reward amount
     uint private constant REWARD_PERIOD = 10 days; // Period over which reward decreases to zero
 
-    function calculateReward(uint creationTimestamp) internal view returns (uint) {
+    function calculateReward(
+        uint creationTimestamp
+    ) internal view returns (uint) {
         uint daysPassed = (block.timestamp - creationTimestamp) / 1 days;
         if (daysPassed >= 10) return 0;
         return INITIAL_REWARD - ((INITIAL_REWARD * daysPassed) / 10);
@@ -30,7 +32,7 @@ contract Splitwise {
 
     event ExpenseCreated(uint expenseId);
     event ExpenseSettled(uint expenseId);
-    event TokensRewarded(address user, uint amount); // New event for token rewards
+    event TokensRewarded(address user, uint amount);
 
     function createExpense(
         address[] memory members,
@@ -93,7 +95,9 @@ contract Splitwise {
                     expenses[expenseId].hasPaid[i] = true;
 
                     // Award tokens for settling based on time passed
-                    uint reward = calculateReward(expenses[expenseId].creationTimestamp);
+                    uint reward = calculateReward(
+                        expenses[expenseId].creationTimestamp
+                    );
                     rewardTokens[user] += reward;
                     emit TokensRewarded(user, reward);
                 }
