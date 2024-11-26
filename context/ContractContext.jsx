@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { BrowserProvider, Contract } from 'ethers';
 import contractABI from '@/artifacts/contracts/Splitwise.sol/Splitwise.json';
+import contractConfig from '@/contract-config.json';
 
 const ContractContext = createContext();
 
@@ -34,6 +35,22 @@ export function ContractProvider({ children }) {
                 throw new Error("No accounts found. Please connect to MetaMask.");
             }
 
+            const provider = new BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            
+            // Use contract address from config
+            const contractAddress = contractConfig.contractAddress;
+            if (!contractAddress) {
+                throw new Error("Contract address not found in config");
+            }
+            
+            const deployedContract = new Contract(
+                contractAddress,
+                contractABI.abi,
+                signer
+            );
+
+            setContract(deployedContract);
             setWalletAddress(newAccounts[0]);
             setConnectionStatus('connected');
             localStorage.setItem(STORAGE_KEY, 'connected');
@@ -60,8 +77,13 @@ export function ContractProvider({ children }) {
         try {
             const provider = new BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            const contractAddress = "0x260884b800e2aC4CbE21aaA413183aC56E5F15Da";
-
+            
+            // Use contract address from config
+            const contractAddress = contractConfig.contractAddress;
+            if (!contractAddress) {
+                throw new Error("Contract address not found in config");
+            }
+            
             const deployedContract = new Contract(
                 contractAddress,
                 contractABI.abi,

@@ -6,7 +6,8 @@ This project is a decentralized application (DApp) built with Solidity and JavaS
 
 ### Prerequisites
 
-- Node.js and npm
+- Node.js
+- pnpm (recommended) or npm
 - Hardhat
 - Infura account for deploying to the Sepolia test network
 
@@ -21,7 +22,12 @@ This project is a decentralized application (DApp) built with Solidity and JavaS
    cd splitwise-web3
    ```
 3. Install the dependencies:
+
    ```bash
+   # Using pnpm (recommended)
+   pnpm install
+
+   # Or using npm
    npm install
    ```
 
@@ -37,25 +43,43 @@ This project is a decentralized application (DApp) built with Solidity and JavaS
 2. Compile the smart contracts:
 
    ```bash
-   npm run compile
+   pnpm compile  # or npm run compile
    ```
 
 3. Run tests for the smart contracts:
    ```bash
-   npm test
+   pnpm test  # or npm test
    ```
 
 ### Deployment
 
-1. Deploy the smart contract to the Sepolia test network:
+1. Deploy the smart contract to your chosen network:
 
    ```bash
-   npm run deploy-contract
+   # Deploy to Sepolia (default) or your chosen network
+   pnpm deploy-contract  # or npm run deploy-contract
+
+   # For other networks, modify in package.json:
+   # "deploy-contract": "hardhat run scripts/deploy.js --network <network-name>"
    ```
 
-2. After deployment, you will receive the contract address. You need to manually update this address in the `ContractContext.jsx` file located in the `context` directory.
+   The contract address will be automatically updated in `contract-config.json`, which is used by the frontend application to connect to the deployed contract.
 
-   Open `context/ContractContext.jsx` and update the contract address variable with the new address.
+   Current contract address: `0xaEba5b44F00aaae2FEb5D90E3D2403d62060109C`
+
+### Running the Application
+
+1. Start the development server:
+
+   ```bash
+   pnpm run dev  # or npm run dev
+   ```
+
+   This will start the web application on [http://localhost:3000](http://localhost:3000) (unless the port is already in use).
+
+2. Open your browser and navigate to [http://localhost:3000](http://localhost:3000) to use the application.
+
+   Make sure you have MetaMask installed and connected to the appropriate network (same network where you deployed the contract).
 
 ## Project Overview and Usage
 
